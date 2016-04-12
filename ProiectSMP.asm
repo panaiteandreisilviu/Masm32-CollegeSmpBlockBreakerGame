@@ -25,15 +25,19 @@ brush db "Solid brush",0
 testString db "Sisteme cu MicroProcesoare",0
 
 
-xpos1 dd 200
-ypos1 dd 420
-xpos2 dd 300
-ypos2 dd 440
+racket_x1 dd 200
+racket_y1 dd 435
+racket_x2 dd 300
+racket_y2 dd 445
 
 ball_x1 dd 245
 ball_x2 dd 260
 ball_y1 dd 400
 ball_y2 dd 385
+
+ball_speed_x dd 5
+ball_speed_y dd 5
+
 
 acceleration dd 10
 
@@ -139,30 +143,30 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
  
 		;.elseif wParam=="w" || wParam=="W"
         ;	mov eax,acceleration
-		;	sub ypos1, eax
+		;	sub racket_y1, eax
 		;.if wParam=="s" || wParam=="S" 
         ;    mov eax,acceleration
-		;	add ypos1, eax
+		;	add racket_y1, eax
 		
 		.if wParam=="a" || wParam=="A"
 			mov eax,acceleration
-			sub xpos1, eax  
+			sub racket_x1, eax  
 		.elseif wParam=="d" || wParam=="D"
 			mov eax,acceleration
-			add xpos1, eax
+			add racket_x1, eax
 		.elseif wParam=="q" || wParam=="Q"
 			dec acceleration
 		.elseif wParam=="e" || wParam=="E"
 			inc acceleration
 		.endif
 		
-		mov eax,xpos1
-		mov xpos2,eax
-		add xpos2,100
+		mov eax,racket_x1
+		mov racket_x2,eax
+		add racket_x2,100
 		
-		mov eax,ypos1
-		mov ypos2,eax
-		add ypos2,20
+		mov eax,racket_y1
+		mov racket_y2,eax
+		add racket_y2,10
 		
         invoke InvalidateRect, hWnd,NULL,FALSE
 		invoke  UpdateWindow,hWnd
@@ -171,10 +175,12 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		invoke ShowCursor,FALSE
 		invoke GetCursorPos, ADDR mousePos
 		mov eax,mousePos.x
-		sub eax,140
-		mov xpos1,eax
+		
+		sub eax,140 ;centering cursor to racket
+		
+		mov racket_x1,eax
 		add eax,100
-		mov xpos2,eax
+		mov racket_x2,eax
 		invoke InvalidateRect, hWnd,NULL,FALSE
 		invoke  UpdateWindow,hWnd
 		
@@ -184,6 +190,9 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		
 		invoke BeginPaint,hWnd,addr ps
 		mov hdc,eax
+		
+		
+		;FIX ME CLEAR BRUSHES AFTER END PAINT
 		
 		;______________Create Brushes_________________
 		RGB 50,50,50
@@ -203,7 +212,6 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;____________________________________________
 		
 		
-		
 		;______________Clear Screen__________________
 		RGB 170,170,170
 		invoke CreateSolidBrush,eax	;our solid brush
@@ -219,7 +227,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;___________Draw racket____________________
 		invoke SelectObject,hdc,hSolidbrush
 		mov hOldSolidbrush,eax
-		invoke Rectangle,hdc,xpos1,ypos1,xpos2,ypos2
+		invoke Rectangle,hdc,racket_x1,racket_y1,racket_x2,racket_y2
 		invoke SelectObject,hdc,hOldSolidbrush
 		;__________________________________________
 		
@@ -239,7 +247,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		
 		
 		
-		;invoke TextOut,hdc,xpos1,ypos1,ADDR acceleration,sizeof acceleration-1
+		;invoke TextOut,hdc,racket_x1,racket_y1,ADDR acceleration,sizeof acceleration-1
 		
 		invoke EndPaint,hWnd,addr ps
 		
@@ -268,14 +276,54 @@ WndProc endp
 ;__________Game Manager Thread__________
 
 GameThread PROC USES ecx Param:DWORD 
-        mov  ecx,900000000
-Loop1: 
-        add  eax,eax 
-        dec  ecx 
-        jz   Get_out 
-        jmp  Loop1 
+	
+GameLoop: 
+
+	;aplly movement to ball
+	mov eax,ball_speed_x
+    sub ball_x1,eax;
+    sub ball_x2,eax;
+	
+	mov eax,ball_speed_y
+    sub ball_y1,eax;
+    sub ball_y2,eax;
+    
+    
+    cmp ball_x1,0
+	jbe changeXDir
+	
+	cmp ball_x1,475
+	jae changeXDir
+    
+    cmp ball_y1,10
+	jbe changeYDir  
+    
+    cmp ball_y1,440
+	jae changeYDir
+	
+    invoke Sleep, 16 ;60FPS
+    invoke InvalidateRect, hwnd,NULL,FALSE
+	invoke  UpdateWindow,hwnd
+	
+jmp  GameLoop
+        
+changeYDir:
+	mov ebx,-1
+	mov eax,ball_speed_y
+	mul ebx
+	mov ball_speed_y,eax
+	jmp  GameLoop
+
+changeXDir:
+	mov ebx,-1
+	mov eax,ball_speed_x
+	mul ebx
+	mov ball_speed_x,eax
+	jmp  GameLoop
+		
+	
 Get_out: 
-        invoke PostMessage,hwnd,WM_FINISH,NULL,NULL 
+        invoke PostMessage,hwnd,WM_FINISH,NULL,NULL
         ret 
 GameThread ENDP
 
