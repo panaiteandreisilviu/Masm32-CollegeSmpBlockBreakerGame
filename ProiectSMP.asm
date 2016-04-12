@@ -16,21 +16,24 @@ ClassName db "Proiect SMP",0
 AppName  db "Proiect SMP",0
 OurText  db "Sisteme cu MicroProcesoare",0
 
-;VK_LEFT		EQU		000000025h
-;VK_UP		EQU		000000026h
-;VK_RIGHT	EQU		000000027h
-;VK_DOWN		EQU		000000028h
+WM_FINISH equ WM_USER+100h
 
 click db "Brush and pen",0
 hatch db "hatched brush",0
 Solid db "Solid Pen",0
 brush db "Solid brush",0
 testString db "Sisteme cu MicroProcesoare",0
+
+
 xpos1 dd 200
 ypos1 dd 420
-
 xpos2 dd 300
 ypos2 dd 440
+
+ball_x1 dd 245
+ball_x2 dd 260
+ball_y1 dd 400
+ball_y2 dd 385
 
 acceleration dd 10
 
@@ -40,19 +43,33 @@ mousePos POINT <>
 .data?
 hInstance HINSTANCE ?
 CommandLine LPSTR ?
+hwnd HANDLE ?
+ThreadID DWORD ?
 .code
 start:
 	invoke GetModuleHandle, NULL
 	mov    hInstance,eax
 	invoke GetCommandLine
 	mov CommandLine,eax
+	
+	;__________Create Thread__________
+	mov  eax,OFFSET GameThread 
+    invoke CreateThread,NULL,NULL,eax,\ 
+    	NULL,0,\ 
+        ADDR ThreadID 
+    invoke CloseHandle,eax 
+    ;_________________________________
+                
 	invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT
 	invoke ExitProcess,eax
+
+
+
+;__________Window creation and Message Loop__________
 	
 WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
 	LOCAL wc:WNDCLASSEX
 	LOCAL msg:MSG
-	LOCAL hwnd:HWND
 	mov   wc.cbSize,SIZEOF WNDCLASSEX
 	mov   wc.style, CS_HREDRAW or CS_VREDRAW
 	mov   wc.lpfnWndProc, OFFSET WndProc
@@ -87,38 +104,10 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
 	ret
 WinMain endp
 
+;____________________________________________________
 
 
-ClrScreen macro
 		
-	RGB 150,150,150
-	invoke CreateSolidBrush,eax	;our solid brush
-	mov hSolidbrush,eax
-	invoke SelectObject,hdc,hSolidbrush
-	mov hOldSolidbrush,eax
-	invoke Rectangle,hdc,-15,-15,2000,2000
-	invoke SelectObject,hdc,hOldSolidbrush
-
-endm
-
-InitPaint macro
-	
-	mov eax,wParam
-	invoke SetBkColor,eax,White
-	invoke GetStockObject,WHITE_BRUSH
-
-	invoke CreatePen,PS_SOLID,4,Black	;create our pen
-	mov hPen,eax
-	invoke CreateHatchBrush,HS_BDIAGONAL,Red	; our hatch brush
-	mov hBrush,eax
-	invoke CreateSolidBrush,Green	;our solid brush
-	mov hSolidbrush,eax
-endm
-
-CreateBrushes macro
-	
-	
-endm
 		
 WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	LOCAL hdc:HDC
@@ -130,6 +119,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	local hOldbrush:DWORD
 	local hSolidbrush:DWORD
 	local hOldSolidbrush:DWORD
+	local hRedSolidbrush:DWORD
 	local hBlackSolidbrush:DWORD
 	
 	
@@ -140,7 +130,6 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		RGB 100,100,00
 		invoke SetBkColor,eax,White
 		invoke GetStockObject,WHITE_BRUSH
-		CreateBrushes
 		ret
 		
 	.ELSEIF uMsg==WM_CHAR
@@ -154,7 +143,6 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;.if wParam=="s" || wParam=="S" 
         ;    mov eax,acceleration
 		;	add ypos1, eax
-		
 		
 		.if wParam=="a" || wParam=="A"
 			mov eax,acceleration
@@ -209,6 +197,9 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		invoke CreateSolidBrush,eax	;our solid brush
 		mov hSolidbrush,eax	
 		
+		
+		invoke CreateSolidBrush,Red	;our solid brush
+		mov hRedSolidbrush,eax	
 		;____________________________________________
 		
 		
@@ -233,6 +224,14 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;__________________________________________
 		
 		
+		;___________Draw Ball____________________
+		invoke SelectObject,hdc,hRedSolidbrush
+		mov hOldSolidbrush,eax
+		invoke Ellipse,hdc,ball_x1,ball_y1,ball_x2,ball_y2
+		invoke SelectObject,hdc,hOldSolidbrush
+		;__________________________________________
+		
+		
 		;invoke SelectObject,hdc,hPen
 		;mov eax,hOldpen
 		;invoke Ellipse,hdc,110,110,210,210
@@ -243,8 +242,10 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;invoke TextOut,hdc,xpos1,ypos1,ADDR acceleration,sizeof acceleration-1
 		
 		invoke EndPaint,hWnd,addr ps
-
-	
+		
+		
+	.ELSEIF uMsg==WM_FINISH 
+      	invoke MessageBox,NULL,ADDR testString,ADDR AppName,MB_OK 
 	
 	
 	.ELSEIF uMsg==WM_SIZE
@@ -260,6 +261,40 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	xor    eax,eax
 	ret
 WndProc endp
+
+
+
+
+;__________Game Manager Thread__________
+
+GameThread PROC USES ecx Param:DWORD 
+        mov  ecx,900000000
+Loop1: 
+        add  eax,eax 
+        dec  ecx 
+        jz   Get_out 
+        jmp  Loop1 
+Get_out: 
+        invoke PostMessage,hwnd,WM_FINISH,NULL,NULL 
+        ret 
+GameThread ENDP
+
+;______________________________________
+
+
+
+
+ClrScreen macro
+		
+	RGB 150,150,150
+	invoke CreateSolidBrush,eax	;our solid brush
+	mov hSolidbrush,eax
+	invoke SelectObject,hdc,hSolidbrush
+	mov hOldSolidbrush,eax
+	invoke Rectangle,hdc,-15,-15,2000,2000
+	invoke SelectObject,hdc,hOldSolidbrush
+
+endm
 
 
 
