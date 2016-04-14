@@ -3,7 +3,6 @@ DrawBlocks macro
 	invoke SelectObject,hdc,hSolidbrush
 	mov hOldSolidbrush,eax
 	
-	
 	mov esi,0 ;loop counter
 	mov edi,50 ;horizontal position offset
 	drawRow1:
@@ -23,8 +22,8 @@ DrawBlocks macro
 		sub eax,blockOffset
 		mov ecx,eax; x2
 		
-		mov eax,row1BottomX; y2
-		mov edx ,row1BottomX
+		mov eax,row1BottomY; y2
+		mov edx ,row1BottomY
 		sub edx ,rowOffset ;y1
 		invoke Rectangle,hdc,ebx,edx,ecx,eax
 		
@@ -54,8 +53,8 @@ DrawBlocks macro
 		sub eax,blockOffset
 		mov ecx,eax; x2
 		
-		mov eax,row2BottomX; y2
-		mov edx ,row2BottomX
+		mov eax,row2BottomY; y2
+		mov edx ,row2BottomY
 		sub edx ,rowOffset ;y1
 		invoke Rectangle,hdc,ebx,edx,ecx,eax
 		
@@ -85,8 +84,8 @@ DrawBlocks macro
 		sub eax,blockOffset
 		mov ecx,eax; block.x2
 		
-		mov eax,row3BottomX; y2
-		mov edx ,row3BottomX
+		mov eax,row3BottomY; y2
+		mov edx ,row3BottomY
 		sub edx ,rowOffset ;y1
 		invoke Rectangle,hdc,ebx,edx,ecx,eax
 		

@@ -12,6 +12,12 @@ includelib \masm32\lib\kernel32.lib
 include \masm32\include\masm32rt.inc
 include blocks.asm
 
+include    masm32.inc
+includelib masm32.lib
+include    debug.inc
+includelib debug.lib
+   
+
 .data
 ClassName db "Proiect SMP",0
 AppName  db "Proiect SMP",0
@@ -29,17 +35,19 @@ Solid db "Solid Pen",0
 brush db "Solid brush",0
 testString db "Sisteme cu MicroProcesoare",0
 
-playerString db "Player :  ",0
+playerString db "Player 1  ",0
 
 pointsString db "Points  ",0
+
+points dd 0
 
 racket_x1 dd 200
 racket_y1 dd 435
 racket_x2 dd 300
 racket_y2 dd 445
 
-ball_x1 dd 245
-ball_x2 dd 260
+ball_x1 dd 15
+ball_x2 dd 30
 ball_y1 dd 400
 ball_y2 dd 385
 
@@ -57,9 +65,9 @@ char WPARAM 9
 blockOffset dd 3
 
 rowOffset dd 20
-row1BottomX dd 90
-row2BottomX dd 120
-row3BottomX dd 150
+row1BottomY dd 90
+row2BottomY dd 120
+row3BottomY dd 150
 
 
 
@@ -69,6 +77,7 @@ hInstance HINSTANCE ?
 CommandLine LPSTR ?
 hwnd HANDLE ?
 ThreadID DWORD ?
+szKey db 13 dup(?)
 
 ;hOldSolidbrush DWORD ? ;might fix memory leak?
 ;hOldpen:DWORD
@@ -151,6 +160,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	local hOldSolidbrush:DWORD
 	local hRedSolidbrush:DWORD
 	local hGraySolidbrush:DWORD
+	local hGray2Solidbrush:DWORD
 	
 	
 
@@ -217,40 +227,37 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		invoke  UpdateWindow,hWnd
 		
 
-		
 	.elseif uMsg==WM_PAINT
 		
 		invoke BeginPaint,hWnd,addr ps
 		mov hdc,eax
 		
 		
-		;FIX ME CLEAR BRUSHES AFTER END PAINT
-		
-		;______________Create Brushes____________
+				;______________Create Brushes____________
 		RGB 50,50,50
 		invoke CreatePen,PS_SOLID,1,eax	;create our pen
 		mov hPen,eax
 		
-		;invoke CreateHatchBrush,HS_BDIAGONAL,Red	; our hatch brush
-		;mov hBrush,eax
+		RGB 90,90,90
+		invoke CreateSolidBrush,eax	;our solid brush
+		mov hGraySolidbrush,eax
+		
+		RGB 170,170,170
+		invoke CreateSolidBrush,eax	;our solid brush
+		mov hGray2Solidbrush,eax
 		
 		RGB 120,120,120
 		invoke CreateSolidBrush,eax	;our solid brush
 		mov hSolidbrush,eax
-		
 		
 		invoke CreateSolidBrush,Red	;our solid brush
 		mov hRedSolidbrush,eax	
 		;________________________________________
 		
 		
-		
 		;______________Clear Screen______________
-		RGB 170,170,170
-		invoke CreateSolidBrush,eax	;our solid brush
-		mov hGraySolidbrush,eax
 		
-		invoke SelectObject,hdc,hGraySolidbrush
+		invoke SelectObject,hdc,hGray2Solidbrush
 		mov hOldSolidbrush,eax
 		invoke Rectangle,hdc,-10,-10,700,700
 		invoke SelectObject,hdc,hOldSolidbrush
@@ -258,9 +265,6 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		
 		
 		;______________Header____________________
-		RGB 90,90,90
-		invoke CreateSolidBrush,eax	;our solid brush
-		mov hGraySolidbrush,eax
 		
 		invoke SelectObject,hdc,hGraySolidbrush
 		mov hOldSolidbrush,eax
@@ -276,7 +280,11 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		
 		invoke TextOut,hdc,350,15,addr pointsString,sizeof pointsString-1
 		
-
+		
+		invoke dwtoa, points, ADDR szKey
+		invoke TextOut,hdc,400,15,addr szKey,sizeof szKey-1
+		
+		;invoke SetDlgItemText,hWnd,IDC_KEY,ADDR szKey 
 		
 		
 	
@@ -301,13 +309,16 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;________________________________________
 		
 		
-		;invoke SelectObject,hdc,hPen
-		;mov eax,hOldpen
-		;invoke Ellipse,hdc,110,110,210,210
-		;invoke SelectObject,hdc,hOldpen
-		
-		
-		;invoke TextOut,hdc,racket_x1,racket_y1,ADDR acceleration,sizeof acceleration-1
+		;__________Clear Brushes_________________
+		invoke DeleteObject,hSolidbrush
+		invoke DeleteObject,hRedSolidbrush
+		invoke DeleteObject,hGraySolidbrush
+		invoke DeleteObject,hGray2Solidbrush
+		invoke DeleteObject,hRedSolidbrush
+		invoke DeleteObject,hOldSolidbrush
+		invoke DeleteObject,hPen
+		invoke DeleteObject,hOldpen
+		;_______________________________________
 		
 		invoke EndPaint,hWnd,addr ps
 		
@@ -339,7 +350,7 @@ GameThread PROC USES ecx Param:DWORD
 	
 GameLoop: 
 
-	;aplly movement to ball
+	;apply movement to ball
 	mov eax,ball_speed_x
     sub ball_x1,eax;
     sub ball_x2,eax;
@@ -363,14 +374,29 @@ GameLoop:
 	jae changeYBottomDir
     ;_____________________________________
     
-    ;_______Check for ball racket collision
     
+    
+    ;_______Check for block collision
+    
+    mov eax,row1BottomY
+	cmp ball_y1,eax
+	je row1Collision
+	
+	mov eax , row2BottomY
+	cmp ball_y1,eax
+	je row2Collision
+	
+	mov eax , row3BottomY
+	cmp ball_y1,eax
+	je row3Collision
     ;_____________________________________	
+    
+    
     invoke Sleep, 16 ;60FPS
     invoke InvalidateRect, hwnd,NULL,FALSE
 	invoke  UpdateWindow,hwnd
 	
-LOOP GameLoop
+jmp GameLoop
 
         
 changeYTopDir:
@@ -409,6 +435,103 @@ changeXDir:
 	mul ebx
 	mov ball_speed_x,eax
 jmp  GameLoop
+
+
+row3Collision:
+	mov eax,0
+	mov ebx,50
+	mov ecx,ball_x1
+	
+	cmp ecx,50 ;ugly fix
+	jb lessThan50_3
+	calculateOffset3:
+	sub ecx,50
+	inc eax
+	cmp ecx,50
+	ja calculateOffset3
+	
+	lessThan50_3:
+	mov ecx, OFFSET blocks_row3 ; base pointer
+	mov edx,1
+	cmp [ecx + eax*4],edx
+	je collisionDetected3
+	
+	jmp GameLoop
+	
+	
+	collisionDetected3:
+		add points,10
+		mov edx,0
+		mov [ecx + eax*4],edx     ; get value from array
+		jmp changeYTopDir
+	
+		
+jmp GameLoop
+
+
+row2Collision:
+
+mov eax,0
+	mov ebx,50
+	mov ecx,ball_x1
+	
+	cmp ecx,50 ;ugly fix
+	jb lessThan50_2
+	calculateOffset2:
+	sub ecx,50
+	inc eax
+	cmp ecx,50
+	ja calculateOffset2
+	
+	lessThan50_2:
+	mov ecx, OFFSET blocks_row2 ; base pointer
+	mov edx,1
+	cmp [ecx + eax*4],edx
+	je collisionDetected2
+	
+	jmp GameLoop
+	
+	
+	collisionDetected2:
+		add points,10
+		mov edx,0
+		mov [ecx + eax*4],edx     ; get value from array
+		jmp changeYTopDir
+
+jmp GameLoop
+
+
+row1Collision:
+
+mov eax,0
+	mov ebx,50
+	mov ecx,ball_x1
+	
+	cmp ecx,50 ;ugly fix
+	jb lessThan50_1
+	calculateOffset1:
+	sub ecx,50
+	inc eax
+	cmp ecx,50
+	ja calculateOffset1
+	lessThan50_1:
+	
+	mov ecx, OFFSET blocks_row1 ; base pointer
+	mov edx,1
+	cmp [ecx + eax*4],edx
+	je collisionDetected1
+	
+	jmp GameLoop
+	
+	
+	collisionDetected1:
+		add points,10
+		mov edx,0
+		mov [ecx + eax*4],edx     ; get value from array
+		jmp changeYTopDir
+		
+
+jmp GameLoop
 
 
 
