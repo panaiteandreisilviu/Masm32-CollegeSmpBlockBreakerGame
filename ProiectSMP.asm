@@ -26,7 +26,7 @@ AppName  db "Proiect SMP",0
 OurText  db "Sisteme cu MicroProcesoare",0
 
 MsgBoxCaption  db "Game Over",0
-MsgBoxText       db "Press OK to restart.",0
+MsgBoxText       db "Press OK to Restart.",0
 
 
 WM_FINISH equ WM_USER+100h
@@ -82,10 +82,7 @@ hInstance HINSTANCE ?
 CommandLine LPSTR ?
 hwnd HANDLE ?
 ThreadID DWORD ?
-szKey db 13 dup(?)
-
-;hOldSolidbrush DWORD ? ;might fix memory leak?
-;hOldpen:DWORD
+szKey db 13 dup(?) ;for dword to string
 
 .code
 start:
@@ -238,24 +235,24 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov hdc,eax
 		
 		
-				;______________Create Brushes____________
+		;______________Create Brushes____________
 		RGB 50,50,50
-		invoke CreatePen,PS_SOLID,1,eax	;create our pen
+		invoke CreatePen,PS_SOLID,1,eax	;border gray pen
 		mov hPen,eax
 		
 		RGB 90,90,90
-		invoke CreateSolidBrush,eax	;our solid brush
+		invoke CreateSolidBrush,eax	;header brush
 		mov hGraySolidbrush,eax
 		
 		RGB 170,170,170
-		invoke CreateSolidBrush,eax	;our solid brush
+		invoke CreateSolidBrush,eax	;backgound/clear screen brush
 		mov hGray2Solidbrush,eax
 		
 		RGB 120,120,120
-		invoke CreateSolidBrush,eax	;our solid brush
+		invoke CreateSolidBrush,eax	;our racket brush
 		mov hSolidbrush,eax
 		
-		invoke CreateSolidBrush,Red	;our solid brush
+		invoke CreateSolidBrush,Red	;ball brush
 		mov hRedSolidbrush,eax	
 		;________________________________________
 		
@@ -410,8 +407,6 @@ changeYTopDir:
 	mov eax,ball_speed_y
 	mul ebx
 	mov ball_speed_y,eax
-	invoke PlaySound, ADDR BlockHit, NULL,SND_FILENAME or SND_ASYNC
-	
 jmp  GameLoop
 	
 
@@ -471,8 +466,8 @@ row3Collision:
 		add points,10
 		mov edx,0
 		mov [ecx + eax*4],edx     ; get value from array
+		invoke PlaySound, ADDR BlockHit, NULL,SND_FILENAME or SND_ASYNC
 		jmp changeYTopDir
-	
 		
 jmp GameLoop
 
@@ -504,6 +499,7 @@ mov eax,0
 		add points,10
 		mov edx,0
 		mov [ecx + eax*4],edx     ; get value from array
+		invoke PlaySound, ADDR BlockHit, NULL,SND_FILENAME or SND_ASYNC
 		jmp changeYTopDir
 
 jmp GameLoop
@@ -536,6 +532,7 @@ mov eax,0
 		add points,10
 		mov edx,0
 		mov [ecx + eax*4],edx     ; get value from array
+		invoke PlaySound, ADDR BlockHit, NULL,SND_FILENAME or SND_ASYNC
 		jmp changeYTopDir
 		
 
@@ -565,9 +562,39 @@ resetGame:
 	
 	
 	mov acceleration,10
-
+	
+	;Reset row block 1
+	mov eax,0
+	mov edx,1
+	resetBlockRow1:
+	mov ecx, OFFSET blocks_row1 ; base pointer
+	mov [ecx + eax*4],edx
+	inc eax
+	cmp eax,8
+	jbe resetBlockRow1
+	
+	;Reset row block 2
+	mov eax,0
+	mov edx,1
+	resetBlockRow2:
+	mov ecx, OFFSET blocks_row2 ; base pointer
+	mov [ecx + eax*4],edx
+	inc eax
+	cmp eax,8
+	jbe resetBlockRow2
+	
+	;Reset row block 3
+	mov eax,0
+	mov edx,1
+	resetBlockRow3:
+	mov ecx, OFFSET blocks_row3 ; base pointer
+	mov [ecx + eax*4],edx
+	inc eax
+	cmp eax,8
+	jbe resetBlockRow3
+	
 	jmp GameLoop
-LOOP resetGame
+jmp resetGame
 	
 Get_out: 
         invoke PostMessage,hwnd,WM_FINISH,NULL,NULL
