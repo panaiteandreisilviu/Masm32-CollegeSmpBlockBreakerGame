@@ -1,3 +1,20 @@
+
+;*************************************************************************
+;
+;		Proiect Laborator Sisteme cu MicroProcesoare
+;		
+;		Panaite Andrei Silviu 331AB
+;
+;		14 aprilie 2016
+;
+;		https://github.com/panaiteandreisilviu/Proiect-SMP
+;
+;*************************************************************************
+
+
+;Nota: Doresc sa continui dezvoltarea programului astfel ca am decis ca
+;	   notele si comentariile sa fie in engleza.
+
 .386
 .model flat, stdcall   
 option casemap:none 
@@ -24,19 +41,20 @@ includelib debug.lib
 ClassName db "Proiect SMP",0
 AppName  db "Proiect SMP",0
 OurText  db "Sisteme cu MicroProcesoare",0
-
 MsgBoxCaption  db "Game Over",0
+MsgBoxCaption2  db "You Won!",0
 MsgBoxText       db "Press OK to Restart.",0
-
 
 WM_FINISH equ WM_USER+100h
 
+;brushes
 click db "Brush and pen",0
 hatch db "hatched brush",0
 Solid db "Solid Pen",0
 brush db "Solid brush",0
 testString db "Sisteme cu MicroProcesoare",0
 
+;game data
 playerString db "Player 1  ",0
 
 pointsString db "Points  ",0
@@ -74,15 +92,15 @@ row1BottomY dd 90
 row2BottomY dd 120
 row3BottomY dd 150
 
-
-
+;mouse position coordinates
 mousePos POINT <>
+
 .data?
 hInstance HINSTANCE ?
-CommandLine LPSTR ?
-hwnd HANDLE ?
+CommandLine LPSTR ? ;command line handle (not used)
+hwnd HANDLE ? ;window handle
 ThreadID DWORD ?
-szKey db 13 dup(?) ;for dword to string
+szKey db 13 dup(?) ;for dword to ascii
 
 .code
 start:
@@ -132,6 +150,8 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
 	mov   hwnd,eax
 	INVOKE ShowWindow, hwnd,SW_SHOWNORMAL
 	INVOKE UpdateWindow, hwnd
+	
+	;message loop
 	.WHILE TRUE
 		INVOKE GetMessage, ADDR msg,NULL,0,0
 		.BREAK .IF (!eax)
@@ -149,6 +169,7 @@ WinMain endp
 
 
 		
+;____________Message Proccessing procedure___________
 		
 WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	LOCAL hdc:HDC
@@ -194,12 +215,12 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 			add racket_x1, eax
 		.elseif wParam=="q" || wParam=="Q"
 			;mov edi, OFFSET blocks_row1
-			;mov eax, [edi]     ; get number from warray			
+			;mov eax, [edi]    			
 			;mov racket_x1,eax;
 			;dec acceleration
 		.elseif wParam=="e" || wParam=="E"
 			;mov edi, OFFSET blocks_row1
-			;mov eax, [edi + 4]     ; get number from warray			
+			;mov eax, [edi + 4] 		
 			;mov racket_x1,eax;
 			;inc acceleration
 		.endif
@@ -241,15 +262,15 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov hPen,eax
 		
 		RGB 90,90,90
-		invoke CreateSolidBrush,eax	;header brush
+		invoke CreateSolidBrush,eax	;top header brush
 		mov hGraySolidbrush,eax
 		
 		RGB 170,170,170
-		invoke CreateSolidBrush,eax	;backgound/clear screen brush
+		invoke CreateSolidBrush,eax	;background/clear screen brush
 		mov hGray2Solidbrush,eax
 		
 		RGB 120,120,120
-		invoke CreateSolidBrush,eax	;our racket brush
+		invoke CreateSolidBrush,eax	;racket brush
 		mov hSolidbrush,eax
 		
 		invoke CreateSolidBrush,Red	;ball brush
@@ -274,6 +295,10 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		invoke SelectObject,hdc,hOldSolidbrush
 		;________________________________________
 		
+		
+		
+		;_________Draw window text_______________
+		
 		RGB    230,230,230
         invoke SetTextColor,hdc,eax
         RGB    90,90,90
@@ -282,12 +307,13 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		
 		invoke TextOut,hdc,350,15,addr pointsString,sizeof pointsString-1
 		
-		
 		invoke dwtoa, points, ADDR szKey
+		;dwtoa DWORD to ASCII 
+		;(converts a dword string to a printable ascii string)
 		invoke TextOut,hdc,400,15,addr szKey,sizeof szKey-1
-		
 		;invoke SetDlgItemText,hWnd,IDC_KEY,ADDR szKey 
 		
+		;________________________________________
 		
 	
 		;___________Draw racket__________________
@@ -298,8 +324,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;________________________________________
 		
 		
-		;__________Draw Blocks___________________
-		DrawBlocks
+		;__________Draw Top Blocks_______________
+		DrawBlocks ;Blocks.asm
 		;________________________________________
 		
 		
@@ -343,6 +369,9 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	ret
 WndProc endp
 
+;_______________________________________
+
+
 
 
 
@@ -350,6 +379,8 @@ WndProc endp
 
 GameThread PROC USES ecx Param:DWORD 
 	
+	
+;_________Game Logic loop_______________
 GameLoop: 
 
 	;apply movement to ball
@@ -391,7 +422,33 @@ GameLoop:
 	mov eax , row3BottomY
 	cmp ball_y1,eax
 	je row3Collision
-    ;_____________________________________	
+    ;_____________________________________
+    
+    
+    ;________Check for game win___________
+    
+    mov ecx, OFFSET blocks_row1
+    mov edx, OFFSET blocks_row2
+    mov edi, OFFSET blocks_row3
+    mov eax,0 ;loop counter
+    mov ebx,0 ; win flag
+    
+    checkGameWin:
+		;calculates sum of block row arrays
+		;if sum is zero game has been won
+    	add ebx,[ecx + eax*4]
+		add ebx,[edx + eax*4]
+		add ebx,[edi + eax*4]
+		inc eax
+    	cmp eax,8
+    jbe checkGameWin
+    
+    ;PrintDec ebx
+    
+    cmp ebx,0
+    jz gameWin
+    ;_____________________________________
+	
     
     
     invoke Sleep, 16 ;60FPS
@@ -400,6 +457,8 @@ GameLoop:
 	
 jmp GameLoop
 
+
+;_________Change ball direction___________
         
 changeYTopDir:
 	;change y movement
@@ -439,7 +498,10 @@ changeXDir:
 	invoke PlaySound, ADDR WallHit, NULL,SND_FILENAME or SND_ASYNC
 jmp  GameLoop
 
+;____________________________________
 
+
+;_________Ball Row collision_________
 row3Collision:
 	mov eax,0
 	mov ebx,50
@@ -452,6 +514,7 @@ row3Collision:
 	inc eax
 	cmp ecx,50
 	ja calculateOffset3
+	
 	
 	lessThan50_3:
 	mov ecx, OFFSET blocks_row3 ; base pointer
@@ -538,12 +601,21 @@ mov eax,0
 
 jmp GameLoop
 
+;___________________________________
+
+
 
 
 gameOver:
 	invoke MessageBox, NULL, addr MsgBoxText, addr MsgBoxCaption, MB_OK
+	mov points,0
 	jmp resetGame
 LOOP gameOver
+
+gameWin:
+	invoke MessageBox, NULL, addr MsgBoxText, addr MsgBoxCaption2, MB_OK
+	jmp resetGame
+LOOP gameWin
 
 resetGame:
 
@@ -570,7 +642,7 @@ resetGame:
 	mov ecx, OFFSET blocks_row1 ; base pointer
 	mov [ecx + eax*4],edx
 	inc eax
-	cmp eax,8
+	cmp eax,8 ;number of iterarions
 	jbe resetBlockRow1
 	
 	;Reset row block 2
@@ -580,17 +652,17 @@ resetGame:
 	mov ecx, OFFSET blocks_row2 ; base pointer
 	mov [ecx + eax*4],edx
 	inc eax
-	cmp eax,8
+	cmp eax,8 ;number of iterarions
 	jbe resetBlockRow2
 	
 	;Reset row block 3
 	mov eax,0
 	mov edx,1
 	resetBlockRow3:
-	mov ecx, OFFSET blocks_row3 ; base pointer
+	mov ecx, OFFSET blocks_row3 ; base pointer for array
 	mov [ecx + eax*4],edx
 	inc eax
-	cmp eax,8
+	cmp eax,8 ;number of iterarions
 	jbe resetBlockRow3
 	
 	jmp GameLoop
