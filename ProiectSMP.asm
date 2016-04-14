@@ -10,6 +10,8 @@ include \masm32\include\kernel32.inc
 includelib \masm32\lib\user32.lib
 includelib \masm32\lib\kernel32.lib
 include \masm32\include\masm32rt.inc
+include \masm32\include\winmm.inc
+includelib \masm32\lib\winmm.lib
 include blocks.asm
 
 include    masm32.inc
@@ -38,6 +40,9 @@ testString db "Sisteme cu MicroProcesoare",0
 playerString db "Player 1  ",0
 
 pointsString db "Points  ",0
+
+BlockHit db "Sounds/block_hit.wav",0
+WallHit db "Sounds/wall_hit.wav",0
 
 points dd 0
 
@@ -376,7 +381,7 @@ GameLoop:
     
     
     
-    ;_______Check for block collision
+    ;_______Check for block collision_____
     
     mov eax,row1BottomY
 	cmp ball_y1,eax
@@ -405,6 +410,8 @@ changeYTopDir:
 	mov eax,ball_speed_y
 	mul ebx
 	mov ball_speed_y,eax
+	invoke PlaySound, ADDR BlockHit, NULL,SND_FILENAME or SND_ASYNC
+	
 jmp  GameLoop
 	
 
@@ -415,13 +422,13 @@ changeYBottomDir:
 	add edx,10
 	
 	;check if ball is outside of racket area
-	;cmp ball_x1,ecx
-	;jbe gameOver
+	cmp ball_x1,ecx
+	jbe gameOver
 	
-	;cmp ball_x1,edx
-	;jae gameOver
-	
-	
+	cmp ball_x1,edx
+	jae gameOver
+		
+	invoke PlaySound, ADDR WallHit, NULL,SND_FILENAME or SND_ASYNC
 	;change y movement
 	mov ebx,-1
 	mov eax,ball_speed_y
@@ -434,6 +441,7 @@ changeXDir:
 	mov eax,ball_speed_x
 	mul ebx
 	mov ball_speed_x,eax
+	invoke PlaySound, ADDR WallHit, NULL,SND_FILENAME or SND_ASYNC
 jmp  GameLoop
 
 
