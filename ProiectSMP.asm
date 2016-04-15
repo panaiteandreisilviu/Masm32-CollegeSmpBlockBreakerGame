@@ -47,11 +47,6 @@ MsgBoxText       db "Press OK to Restart.",0
 
 WM_FINISH equ WM_USER+100h
 
-;brushes
-click db "Brush and pen",0
-hatch db "hatched brush",0
-Solid db "Solid Pen",0
-brush db "Solid brush",0
 testString db "Sisteme cu MicroProcesoare",0
 
 ;game data
