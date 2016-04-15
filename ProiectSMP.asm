@@ -45,22 +45,24 @@ MsgBoxCaption  db "Game Over",0
 MsgBoxCaption2  db "You Won!",0
 MsgBoxText       db "Press OK to Restart.",0
 
-WM_FINISH equ WM_USER+100h
+ButtonClassName db "button",0 
+ButtonText db "Start Game",0 
+EditClassName db "edit",0 
 
-;brushes
-click db "Brush and pen",0
-hatch db "hatched brush",0
-Solid db "Solid Pen",0
-brush db "Solid brush",0
+
+WM_FINISH equ WM_USER+100h
 testString db "Sisteme cu MicroProcesoare",0
 
 ;game data
-playerString db "Player 1  ",0
+playerString db "Player: ",0
 
 pointsString db "Points  ",0
 
 BlockHit db "Sounds/block_hit.wav",0
 WallHit db "Sounds/wall_hit.wav",0
+
+
+
 
 points dd 0
 
@@ -101,6 +103,21 @@ CommandLine LPSTR ? ;command line handle (not used)
 hwnd HANDLE ? ;window handle
 ThreadID DWORD ?
 szKey db 13 dup(?) ;for dword to ascii
+hwndButton HWND ? 
+hwndEdit HWND ? 
+buffer db 512 dup(?)
+playerName db 30 dup(?)
+
+.const 
+ButtonID equ 1                                ; The control ID of the button control 
+EditID equ 2                                    ; The control ID of the edit control 
+
+
+IDM_HELLO equ 1 
+IDM_CLEAR equ 2 
+IDM_GETTEXT equ 3 
+IDM_EXIT equ 4
+  
 
 .code
 start:
@@ -108,15 +125,6 @@ start:
 	mov    hInstance,eax
 	invoke GetCommandLine
 	mov CommandLine,eax
-	
-	;__________Create Thread__________
-	mov  eax,OFFSET GameThread 
-    invoke CreateThread,NULL,NULL,eax,\ 
-    	NULL,0,\ 
-        ADDR ThreadID 
-    invoke CloseHandle,eax 
-    ;_________________________________
-                
 	invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT
 	invoke ExitProcess,eax
 
@@ -188,66 +196,26 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	
 
 	;initializare dialogWindow
-	.IF uMsg==WM_INITDIALOG
-		mov eax,wParam
+	.if uMsg==WM_INITDIALOG
+      	mov eax,wParam
 		RGB 100,100,00
 		invoke SetBkColor,eax,White
 		invoke GetStockObject,WHITE_BRUSH
 	ret
-		
-	.ELSEIF uMsg==WM_CHAR
-        
-        push wParam 
-        pop  char
- 
-		;.elseif wParam=="w" || wParam=="W"
-        ;	mov eax,acceleration
-		;	sub racket_y1, eax
-		;.if wParam=="s" || wParam=="S" 
-        ;    mov eax,acceleration
-		;	add racket_y1, eax
-		
-		.if wParam=="a" || wParam=="A"
-			mov eax,acceleration
-			sub racket_x1, eax  
-		.elseif wParam=="d" || wParam=="D"
-			mov eax,acceleration
-			add racket_x1, eax
-		.elseif wParam=="q" || wParam=="Q"
-			;mov edi, OFFSET blocks_row1
-			;mov eax, [edi]    			
-			;mov racket_x1,eax;
-			;dec acceleration
-		.elseif wParam=="e" || wParam=="E"
-			;mov edi, OFFSET blocks_row1
-			;mov eax, [edi + 4] 		
-			;mov racket_x1,eax;
-			;inc acceleration
-		.endif
-		
-		mov eax,racket_x1
-		mov racket_x2,eax
-		add racket_x2,100
-		
-		mov eax,racket_y1
-		mov racket_y2,eax
-		add racket_y2,10
-		
-        invoke InvalidateRect, hWnd,NULL,FALSE
-		invoke  UpdateWindow,hWnd
-		
-	.elseif uMsg==WM_MOUSEMOVE
-		invoke ShowCursor,FALSE
-		invoke GetCursorPos, ADDR mousePos
-		mov eax,mousePos.x
-		
-		sub eax,140 ;centering cursor to racket
-		
-		mov racket_x1,eax
-		add eax,100
-		mov racket_x2,eax
-		invoke InvalidateRect, hWnd,NULL,FALSE
-		invoke  UpdateWindow,hWnd
+	
+	.elseif   uMsg==WM_CREATE
+	    invoke CreateWindowEx,WS_EX_CLIENTEDGE, \ 
+                        ADDR EditClassName,NULL,\ 
+                        WS_CHILD or WS_VISIBLE or WS_BORDER or ES_LEFT\ 
+                        or ES_AUTOHSCROLL,\ 
+                        90,250,150,25,hWnd,EditID,hInstance,NULL
+        mov  hwndEdit,eax 
+        invoke SetFocus, hwndEdit 
+        invoke CreateWindowEx,NULL, ADDR ButtonClassName,\ 
+                        ADDR ButtonText,\ 
+                        WS_CHILD or WS_VISIBLE or BS_DEFPUSHBUTTON,\ 
+                        250,250,90,25,hWnd,ButtonID,hInstance,NULL 
+        mov  hwndButton,eax
 		
 
 	.elseif uMsg==WM_PAINT
@@ -304,8 +272,11 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
         RGB    90,90,90
         invoke SetBkColor,hdc,eax
 		invoke TextOut,hdc,10,15,addr playerString,sizeof playerString-1
+		invoke TextOut,hdc,60,15,addr buffer,sizeof playerString-1
+
 		
 		invoke TextOut,hdc,350,15,addr pointsString,sizeof pointsString-1
+		
 		
 		invoke dwtoa, points, ADDR szKey
 		;dwtoa DWORD to ASCII 
@@ -349,6 +320,61 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		;_______________________________________
 		
 		invoke EndPaint,hWnd,addr ps
+
+	.ELSEIF uMsg==WM_CHAR
+        
+        push wParam 
+        pop  char
+ 
+		;.elseif wParam=="w" || wParam=="W"
+        ;	mov eax,acceleration
+		;	sub racket_y1, eax
+		;.if wParam=="s" || wParam=="S" 
+        ;    mov eax,acceleration
+		;	add racket_y1, eax
+		
+		.if wParam=="a" || wParam=="A"
+			mov eax,acceleration
+			sub racket_x1, eax  
+		.elseif wParam=="d" || wParam=="D"
+			mov eax,acceleration
+			add racket_x1, eax
+		.elseif wParam=="q" || wParam=="Q"
+			;mov edi, OFFSET blocks_row1
+			;mov eax, [edi]    			
+			;mov racket_x1,eax;
+			;dec acceleration
+		.elseif wParam=="e" || wParam=="E"
+			;mov edi, OFFSET blocks_row1
+			;mov eax, [edi + 4] 		
+			;mov racket_x1,eax;
+			;inc acceleration
+		.endif
+		
+		mov eax,racket_x1
+		mov racket_x2,eax
+		add racket_x2,100
+		
+		mov eax,racket_y1
+		mov racket_y2,eax
+		add racket_y2,10
+		
+        invoke InvalidateRect, hWnd,NULL,FALSE
+		invoke  UpdateWindow,hWnd
+		
+	.elseif uMsg==WM_MOUSEMOVE
+		invoke ShowCursor,FALSE
+		invoke GetCursorPos, ADDR mousePos
+		mov eax,mousePos.x
+		
+		sub eax,140 ;centering cursor to racket
+		
+		mov racket_x1,eax
+		add eax,100
+		mov racket_x2,eax
+		invoke InvalidateRect, hWnd,NULL,FALSE
+		invoke  UpdateWindow,hWnd
+		
 		
 		
 	.ELSEIF uMsg==WM_FINISH 
@@ -360,6 +386,45 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 	
 	.ELSEIF uMsg==WM_DESTROY
 		invoke PostQuitMessage,NULL
+		
+	
+    .ELSEIF uMsg==WM_COMMAND 
+    mov eax,wParam
+    ;to be changed 
+    .IF lParam==0 
+        .IF ax==IDM_HELLO 
+            invoke SetWindowText,hwndEdit,ADDR testString
+        .ELSEIF ax==IDM_CLEAR 
+            invoke SetWindowText,hwndEdit,NULL 
+        .ELSEIF  ax==IDM_GETTEXT 
+            invoke GetWindowText,hwndEdit,ADDR buffer,512 
+            invoke MessageBox,NULL,ADDR buffer,ADDR AppName,MB_OK
+        .ELSE 
+            invoke DestroyWindow,hWnd 
+        .ENDIF 
+    .ELSE 
+        .IF ax==ButtonID 
+            shr eax,16 
+            .IF ax==BN_CLICKED
+            	
+			    ;__________Create Thread__________
+				mov  eax,OFFSET GameThread 
+			    invoke CreateThread,NULL,NULL,eax,\ 
+			    	NULL,0,\ 
+			        ADDR ThreadID 
+			    invoke CloseHandle,eax
+			    ;_________________________________
+			    
+			    invoke GetWindowText,hwndEdit,ADDR buffer,512
+			    
+			    invoke DestroyWindow,hwndButton
+			    invoke DestroyWindow,hwndEdit
+                
+                ;invoke SendMessage,hWnd,WM_COMMAND,IDM_GETTEXT,0 
+            .ENDIF 
+        .ENDIF 
+    .ENDIF 
+        
 		
 	.ELSE
 		invoke DefWindowProc,hWnd,uMsg,wParam,lParam
@@ -476,11 +541,11 @@ changeYBottomDir:
 	add edx,10
 	
 	;check if ball is outside of racket area
-	cmp ball_x1,ecx
-	jbe gameOver
+	;cmp ball_x1,ecx
+	;jbe gameOver
 	
-	cmp ball_x1,edx
-	jae gameOver
+	;cmp ball_x1,edx
+	;jae gameOver
 		
 	invoke PlaySound, ADDR WallHit, NULL,SND_FILENAME or SND_ASYNC
 	;change y movement
