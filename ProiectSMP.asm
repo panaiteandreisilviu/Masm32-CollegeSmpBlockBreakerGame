@@ -359,8 +359,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov racket_y2,eax
 		add racket_y2,10
 		
-        invoke InvalidateRect, hWnd,NULL,FALSE
-		invoke  UpdateWindow,hWnd
+        ;invoke InvalidateRect, hWnd,NULL,FALSE
+		;invoke  UpdateWindow,hWnd
 		
 	.elseif uMsg==WM_MOUSEMOVE
 		invoke ShowCursor,FALSE
@@ -372,8 +372,8 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov racket_x1,eax
 		add eax,100
 		mov racket_x2,eax
-		invoke InvalidateRect, hWnd,NULL,FALSE
-		invoke  UpdateWindow,hWnd
+		;invoke InvalidateRect, hWnd,NULL,FALSE
+		;invoke  UpdateWindow,hWnd
 		
 		
 		
